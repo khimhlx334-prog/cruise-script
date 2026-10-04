@@ -1,6 +1,6 @@
--- ==========================================================
--- 🚢 Cruise Line Tycoon - Modern UI + Webhook + Anti-AFK & Anti-Ban
--- ==========================================================
+-- ========================================================
+-- 🚢 Cruise Line Tycoon - Modern UI + Webhook (Bypassed Key & Fixed Webhook)
+-- ========================================================
 
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
@@ -19,243 +19,235 @@ local function setupProtection()
             connection:Disable()
         end
     end)
-    
-    -- ป้องกันการตรวจจับเบื้องต้น (Anti-Ban Basic Hook)
-    pcall(function()
-        local mt = getrawmetatable(game)
-        setreadonly(mt, false)
-        local oldNamecall = mt.__namecall
-        mt.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            if method == "Kick" or method == "kick" then
-                return
-            end
-            return oldNamecall(self, ...)
-        end)
-        setreadonly(mt, true)
-    end)
 end
 setupProtection()
 
--- สร้าง UI ดีไซน์เรียบง่าย ทันสมัย
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
-local TitleLabel = Instance.new("TextLabel")
-local UrlTextBox = Instance.new("TextBox")
-local TextBoxCorner = Instance.new("UICorner")
-local SaveButton = Instance.new("TextButton")
-local ButtonCorner = Instance.new("UICorner")
-local StatusLabel = Instance.new("TextLabel")
-local CloseButton = Instance.new("TextButton")
+-- ตัวแปรสำหรับตั้งค่า Webhook และสถานะบอท
+local webhookUrl = ""
+local isRunning = false
 
-ScreenGui.Name = "CruiseModernUI"
-ScreenGui.Parent = CoreGui or LocalPlayer:WaitForChild("PlayerGui")
+-- ฟังก์ชันส่ง Discord Webhook ที่ปรับปรุงใหม่ให้รองรับ Error Handling และ HttpPost
+local function sendWebhook(title, description, color)
+    if webhookUrl == "" or not webhookUrl:match("^https://discord.com/api/webhooks/") then
+        print("Webhook URL ไม่ถูกต้องหรือไม่ถูกตั้งค่า")
+        return
+    end
+
+    local data = {
+        ["embeds"] = {
+            {
+                ["title"] = title,
+                ["description"] = description,
+                ["color"] = color or 3447003,
+                ["footer"] = {
+                    ["text"] = "Cruise Line Tycoon Script | Auto Notifier"
+                },
+                ["timestamp"] = DateTime.now():ToIsoDate()
+            }
+        }
+    }
+
+    local success, encodedData = pcall(function()
+        return HttpService:JSONEncode(data)
+    end)
+
+    if success then
+        task.spawn(function()
+            local req = (http_request or syn and syn.request or request)
+            if req then
+                local response = pcall(function()
+                    return req({
+                        Url = webhookUrl,
+                        Method = "POST",
+                        Headers = {
+                            ["Content-Type"] = "application/json"
+                        },
+                        Body = encodedData
+                    })
+                end)
+                if not response then
+                    -- สำรองด้วย HttpService หากฟังก์ชัน request ของ executor มีปัญหา
+                    pcall(function()
+                        HttpService:PostAsync(webhookUrl, encodedData)
+                    end)
+                end
+            else
+                pcall(function()
+                    HttpService:PostAsync(webhookUrl, encodedData)
+                end)
+            end
+        end)
+    end
+end
+
+-- สร้างหน้าตา UI แบบ Modern (ข้ามหน้า Key มาที่หน้าหลักทันที)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CruiseTycoonUI"
+ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 
-MainFrame.Name = "MainFrame"
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 450, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 37)
-MainFrame.Position = UDim2.new(0.5, -175, 0.4, -100)
-MainFrame.Size = UDim2.new(0, 350, 0, 210)
-MainFrame.Active = true
-MainFrame.Draggable = true
 
+local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 12)
 UICorner.Parent = MainFrame
 
-TitleLabel.Parent = MainFrame
-TitleLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 52)
-TitleLabel.Size = UDim2.new(1, 0, 0, 45)
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.Text = "🚢 Cruise Line Tycoon Notifier"
+-- ส่วนหัวของ UI
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 12)
+HeaderCorner.Parent = Header
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -20, 1, 0)
+TitleLabel.Position = UDim2.new(0, 15, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "🚢 Cruise Line Tycoon - Hub"
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = 14
+TitleLabel.TextSize = 16
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = Header
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 12)
-TitleCorner.Parent = TitleLabel
+-- Tab เมนูด้านซ้าย
+local TabButtonFrame = Instance.new("Frame")
+TabButtonFrame.Size = UDim2.new(0, 130, 1, -55)
+TabButtonFrame.Position = UDim2.new(0, 10, 0, 50)
+TabButtonFrame.BackgroundTransparency = 1
+TabButtonFrame.Parent = MainFrame
 
-CloseButton.Parent = MainFrame
-CloseButton.BackgroundTransparency = 1
-CloseButton.Position = UDim2.new(1, -35, 0, 10)
-CloseButton.Size = UDim2.new(0, 25, 0, 25)
-CloseButton.Font = Enum.Font.GothamBold
-CloseButton.Text = "✕"
-CloseButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-CloseButton.TextSize = 14
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 8)
+UIListLayout.Parent = TabButtonFrame
 
-UrlTextBox.Parent = MainFrame
-UrlTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-UrlTextBox.Position = UDim2.new(0.1, 0, 0, 65)
-UrlTextBox.Size = UDim2.new(0.8, 0, 0, 40)
-UrlTextBox.Font = Enum.Font.Gotham
-UrlTextBox.PlaceholderText = "วาง Discord Webhook URL ที่นี่..."
-UrlTextBox.Text = ""
-UrlTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-UrlTextBox.TextSize = 12
+-- พื้นที่แสดงเนื้อหาแต่ละหน้า
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, -155, 1, -55)
+ContentFrame.Position = UDim2.new(0, 145, 0, 50)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
 
-TextBoxCorner.CornerRadius = UDim.new(0, 8)
-TextBoxCorner.Parent = UrlTextBox
+local function createPage()
+    local p = Instance.new("ScrollingFrame")
+    p.Size = UDim2.new(1, 0, 1, 0)
+    p.BackgroundTransparency = 1
+    p.BorderSizePixel = 0
+    p.ScrollBarThickness = 4
+    p.Visible = false
+    p.Parent = ContentFrame
+    return p
+end
 
-SaveButton.Parent = MainFrame
-SaveButton.BackgroundColor3 = Color3.fromRGB(46, 204, 113)
-SaveButton.Position = UDim2.new(0.1, 0, 0, 118)
-SaveButton.Size = UDim2.new(0.8, 0, 0, 40)
-SaveButton.Font = Enum.Font.GothamBold
-SaveButton.Text = "💾 บันทึกและเริ่มทำงาน (Start)"
-SaveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-SaveButton.TextSize = 13
+local pageMain = createPage()
+pageMain.Visible = true -- เปิดหน้าหลักเป็นค่าเริ่มต้น
 
-ButtonCorner.CornerRadius = UDim.new(0, 8)
-ButtonCorner.Parent = SaveButton
+local pageSettings = createPage()
 
-StatusLabel.Parent = MainFrame
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Position = UDim2.new(0.1, 0, 0, 168)
-StatusLabel.Size = UDim2.new(0.8, 0, 0, 30)
-StatusLabel.Font = Enum.Font.GothamMedium
-StatusLabel.Text = "สถานะ: รอใส่ Webhook URL..."
-StatusLabel.TextColor3 = Color3.fromRGB(241, 196, 15)
-StatusLabel.TextSize = 12
-
-local WEBHOOK_URL = ""
-local departureMoney = 0
-local lastState = "Docked"
-local isRunning = false
-
-local function getStatValue(keywords)
-    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-    if leaderstats then
-        for _, key in ipairs(keywords) do
-            local stat = leaderstats:FindFirstChild(key)
-            if stat then return tostring(stat.Value) end
-        end
-    end
+-- ปุ่มเปลี่ยนหน้า
+local function createTabButton(text, targetPage, order)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    btn.TextSize = 14
+    btn.Font = Enum.Font.GothamMedium
+    btn.LayoutOrder = order
+    btn.Parent = TabButtonFrame
     
-    local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-    if playerGui then
-        for _, v in pairs(playerGui:GetDescendants()) do
-            if v:IsA("TextLabel") or v:IsA("TextBox") then
-                for _, key in ipairs(keywords) do
-                    if string.find(string.lower(v.Text), string.lower(key)) then
-                        local num = string.match(v.Text, "%d+[%d%,%.]*")
-                        if num then return num end
-                    end
-                end
-            end
-        end
-    end
-    return "0"
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        pageMain.Visible = false
+        pageSettings.Visible = false
+        targetPage.Visible = true
+    end)
 end
 
-local function getCurrentStats()
-    local fuel = getStatValue({"Fuel", "น้ำมัน", "Gas"})
-    local elec = getStatValue({"Electricity", "Power", "Electric", "ไฟฟ้า"})
-    local supplies = getStatValue({"Supplies", "Food", "Supply", "เสบียง"})
-    local money = getStatValue({"Money", "Cash", "Beli", "Coins", "Dollar", "$"})
-    return fuel, elec, supplies, money
-end
+createTabButton("🏠 หน้าหลัก", pageMain, 1)
+createTabButton("⚙️ ตั้งค่า", pageSettings, 2)
 
-local function sendWebhook(title, description, color, fields)
-    if WEBHOOK_URL == "" then return end
-    local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
-    if not httpRequest then return end
+-- [เนื้อหาหน้าหลัก (Main Page)]
+local MainListLayout = Instance.new("UIListLayout")
+MainListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+MainListLayout.Padding = UDim.new(0, 10)
+MainListLayout.Parent = pageMain
 
-    local payload = {
-        embeds = {{
-            title = title,
-            description = description,
-            color = color,
-            fields = fields,
-            footer = { text = "Cruise Line Tycoon • Modern Notifier (10 Knots Speed)" },
-            timestamp = DateTime.now():ToIsoDate()
-        }}
-    }
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, -10, 0, 40)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 127)
+ToggleButton.Text = "🚀 เริ่มต้นทำงานระบบอటో"
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.TextSize = 14
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.LayoutOrder = 1
+ToggleButton.Parent = pageMain
 
-    httpRequest({
-        Url = WEBHOOK_URL,
-        Method = "POST",
-        Headers = { ["Content-Type"] = "application/json" },
-        Body = HttpService:JSONEncode(payload)
-    })
-end
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleButton
 
-local function notifyDeparture()
-    local fuel, elec, supplies, money = getCurrentStats()
-    local cleanMoney = tonumber(string.gsub(tostring(money), "[^%d.]", "")) or 0
-    departureMoney = cleanMoney
-
-    local fields = {
-        { name = "⛽ น้ำมันที่มี", value = "**" .. fuel .. "** t", inline = true },
-        { name = "⚡ ไฟฟ้าที่มี", value = "**" .. elec .. "** หน่วย", inline = true },
-        { name = "📦 เสบียงที่มี", value = "**" .. supplies .. "** t", inline = true },
-        { name = "💰 เงินคงเหลือปัจจุบัน", value = "💵 **$" .. string.format("%'d", cleanMoney) .. "**", inline = false }
-    }
-    sendWebhook("🚢 [Cruise Line Tycoon] เรือกำลังออกจากท่าเรือ!", "เรือเริ่มออกเดินทาง (ความเร็วตั้งไว้ที่ 10 น็อต) สรุปทรัพยากรตอนออก:", 3447003, fields)
-end
-
-local function notifyArrival()
-    local fuel, elec, supplies, currentMoney = getCurrentStats()
-    local cleanMoney = tonumber(string.gsub(tostring(currentMoney), "[^%d.]", "")) or 0
-    local earned = cleanMoney - departureMoney
-    if earned < 0 then earned = 0 end
-
-    local fields = {
-        { name = "🎉 รายได้ที่ได้รับรอบนี้", value = "➕ **$" .. string.format("%'d", earned) .. "**", inline = false },
-        { name = "⛽ น้ำมันคงเหลือ", value = "**" .. fuel .. "** t", inline = true },
-        { name = "⚡ ไฟฟ้าคงเหลือ", value = "**" .. elec .. "** หน่วย", inline = true },
-        { name = "📦 เสบียงคงเหลือ", value = "**" .. supplies .. "** t", inline = true },
-        { name = "💰 เงินรวมปัจจุบัน", value = "💵 **$" .. string.format("%'d", cleanMoney) .. "**", inline = false }
-    }
-    sendWebhook("🏝 [Cruise Line Tycoon] เรือถึงจุดหมายแล้ว!", "เรือเทียบท่าเรียบร้อย สรุปกำไรและทรัพยากร:", 5763719, fields)
-end
-
-SaveButton.MouseButton1Click:Connect(function()
-    local url = UrlTextBox.Text
-    if string.find(url, "https://discord.com/api/webhooks/") then
-        WEBHOOK_URL = url
-        script.Running = true
-        isRunning = true
-        StatusLabel.Text = "สถานะ: ทำงานปกติ (Anti-AFK & Anti-Ban เปิดอยู่)"
-        StatusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
-        
-        sendWebhook("🟢 [System] เชื่อมต่อสำเร็จ!", "เปิดใช้งานระบบแจ้งเตือนผ่าน UI และระบบป้องกันอัตโนมัติเรียบร้อยแล้ว", 65280, {})
+ToggleButton.MouseButton1Click:Connect(function()
+    isRunning = not isRunning
+    if isRunning then
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        ToggleButton.Text = "⏹️ หยุดการทำงาน"
+        sendWebhook("ระบบเริ่มทำงาน", "สคริปต์ Cruise Line Tycoon เริ่มรันการทำงานอัตโนมัติแล้ว", 65280)
     else
-        StatusLabel.Text = "สถานะ: URL Webhook ไม่ถูกต้อง!"
-        StatusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 127)
+        ToggleButton.Text = "🚀 เริ่มต้นทำงานระบบอัตโนมัติ"
+        sendWebhook("ระบบหยุดทำงาน", "สคริปต์ถูกหยุดการทำงานโดยผู้ใช้", 16711680)
     end
 end)
 
--- ลูปเช็กสถานะเรือและการเดินทาง (รองรับความเร็ว 10 น็อต)
-task.spawn(function()
-    while task.wait(5) do
-        if isRunning and WEBHOOK_URL ~= "" then
-            local currentState = "Docked"
-            local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-            
-            if playerGui then
-                for _, v in pairs(playerGui:GetDescendants()) do
-                    if v:IsA("TextLabel") or v:IsA("TextBox") then
-                        local text = string.lower(v.Text)
-                        if string.find(text, "sailing") or string.find(text, "traveling") or string.find(text, "departed") then
-                            currentState = "Sailing"
-                            break
-                        end
-                    end
-                end
-            end
+-- [เนื้อหาหน้าตั้งค่า (Settings Page)]
+local SettingsListLayout = Instance.new("UIListLayout")
+SettingsListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SettingsListLayout.Padding = UDim.new(0, 10)
+SettingsListLayout.Parent = pageSettings
 
-            if lastState == "Docked" and currentState == "Sailing" then
-                lastState = "Sailing"
-                notifyDeparture()
-            elseif lastState == "Sailing" and currentState == "Docked" then
-                lastState = "Docked"
-                notifyArrival()
-            end
-        end
-    end
+local WebhookLabel = Instance.new("TextLabel")
+WebhookLabel.Size = UDim2.new(1, -10, 0, 20)
+WebhookLabel.BackgroundTransparency = 1
+WebhookLabel.Text = "Discord Webhook URL:"
+WebhookLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+WebhookLabel.TextSize = 13
+WebhookLabel.Font = Enum.Font.GothamMedium
+WebhookLabel.TextXAlignment = Enum.TextXAlignment.Left
+WebhookLabel.LayoutOrder = 1
+WebhookLabel.Parent = pageSettings
+
+local WebhookBox = Instance.new("TextBox")
+WebhookBox.Size = UDim2.new(1, -10, 0, 35)
+WebhookBox.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+WebhookBox.PlaceholderText = "วางลิงก์ Webhook ที่นี่..."
+WebhookBox.Text = ""
+WebhookBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+WebhookBox.TextSize = 12
+WebhookBox.Font = Enum.Font.Gotham
+WebhookBox.ClearTextOnFocus = false
+WebhookBox.LayoutOrder = 2
+WebhookBox.Parent = pageSettings
+
+local WebhookCorner = Instance.new("UICorner")
+WebhookCorner.CornerRadius = UDim.new(0, 6)
+WebhookCorner.Parent = WebhookBox
+
+-- บันทึกค่า Webhook ทันทีเมื่อพิมพ์หรือกด Enter เสร็จสิ้น
+WebhookBox.FocusLost:Connect(function(enterPressed)
+    webhookUrl = WebhookBox.Text
+    sendWebhook("ทดสอบการเชื่อมต่อ Webhook", "ตั้งค่า Webhook สำเร็จพร้อมใช้งาน!", 3447003)
 end)
