@@ -1,304 +1,51 @@
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- ลบ UI เก่าทิ้งก่อนกันบัิ๊กซ้อนกัน
-if CoreGui:FindFirstChild("FNJHub_UI") then
-    CoreGui.FNJHub_UI:Destroy()
+-- ลบอันเก่าทิ้งก่อน
+if PlayerGui:FindFirstChild("FNJHub_UI") then
+    PlayerGui.FNJHub_UI:Destroy()
 end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FNJHub_UI"
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 0, 0, 0)
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.Size = UDim2.new(0, 400, 0, 250)
+MainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
 MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
+MainPlayer = MainFrame
 MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
--- อ니เมชั่นเด้งเข้า
-TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 500, 0, 380),
-    Position = UDim2.new(0.5, -250, 0.5, -190)
-}):Play()
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "🍗 FIFIA&NEWDAM&JAOMONGMONG HUB"
+Title.TextColor3 = Color3.fromRGB(255, 215, 0)
+Title.TextSize = 13
+Title.Font = Enum.Font.GothamBold
 
--- ส่วนหัว
-local Header = Instance.new("Frame", MainFrame)
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
-Header.BorderSizePixel = 0
-Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
-
-local LogoG = Instance.new("TextLabel", Header)
-LogoG.Size = UDim2.new(0, 35, 0, 35)
-LogoG.Position = UDim2.new(0, 8, 0, 5)
-LogoG.BackgroundColor3 = Color3.fromRGB(220, 130, 40)
-LogoG.Text = "🍗"
-LogoG.TextSize = 18
-Instance.new("UICorner", LogoG).CornerRadius = UDim.new(0, 8)
-
-local TitleLabel = Instance.new("TextLabel", Header)
-TitleLabel.Size = UDim2.new(1, -80, 1, 0)
-TitleLabel.Position = UDim2.new(0, 50, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "FIFIA&NEWDAM&JAOMONGMONG HUB"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-TitleLabel.TextSize = 11
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-
-local CloseBtn = Instance.new("TextButton", Header)
-CloseBtn.Size = UDim2.new(0, 32, 0, 32)
-CloseBtn.Position = UDim2.new(1, -36, 0, 6)
+local CloseBtn = Instance.new("TextButton", MainFrame)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 
 CloseBtn.MouseButton1Click:Connect(function()
     ScreenGui:Destroy()
 end)
 
-print("UI Test Loaded Successfully!")
--- ========================================================
--- 🍗 FIFIA & NEWDAM & JAOMONGMONG HUB (Cruise Line Tycoon)
--- ========================================================
-
-local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local VirtualUser = game:GetService("VirtualUser")
-local LocalPlayer = Players.LocalPlayer
-
--- ระบบ Anti-AFK
-local function setupProtection()
-    LocalPlayer.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end)
-    pcall(function()
-        for _, connection in ipairs(getconnections(LocalPlayer.Idled)) do
-            connection:Disable()
-        end
-    end)
-end
-setupProtection()
-
--- ระบบเซฟ / โหลด Webhook ผ่านไฟล์
-local webhookFileName = "FNJ_Hub_Webhook.txt"
-local webhookUrl = ""
-
-local function loadSavedWebhook()
-    local success, content = pcall(function()
-        if readfile and isfile and isfile(webhookFileName) then
-            return readfile(webhookFileName)
-        end
-    end)
-    if success and content then
-        return content
-    end
-    return ""
-end
-
-local function saveWebhookToFile(url)
-    pcall(function()
-        if writefile then
-            writefile(webhookFileName, url)
-        end
-    end)
-end
-
-webhookUrl = loadSavedWebhook()
-local tempWebhookUrl = webhookUrl
-
--- ตัวแปรตั้งค่าและสถานะฟังก์ชัน
-local settings = {
-    autoPilot = false,
-    selectedIsland = "เกาะ A",
-    speedBoost = false,
-    espShip = false,
-    boostFps = false,
-    webhookActive = false
-}
-
-local function sendWebhook(title, description, color)
-    if not settings.webhookActive or webhookUrl == "" or not webhookUrl:match("^https://discord.com/api/webhooks/") then return end
-    local data = {
-        ["embeds"] = {{
-            ["title"] = title,
-            ["description"] = description,
-            ["color"] = color or 3447003,
-            ["timestamp"] = DateTime.now():ToIsoDate()
-        }}
-    }
-    local success, encodedData = pcall(function() return HttpService:JSONEncode(data) end)
-    if success then
-        task.spawn(function()
-            local req = (http_request or syn and syn.request or request)
-            if req then
-                pcall(function() req({Url = webhookUrl, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = encodedData}) end)
-            else
-                pcall(function() HttpService:PostAsync(webhookUrl, encodedData) end)
-            end
-        end)
-    end
-end
-
--- สร้างหน้าต่าง UI หลัก
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FNJHub_UI"
-ScreenGui.Parent = CoreGui
-ScreenGui.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 0, 0, 0) -- ขนาดเริ่มต้น 0 เพื่อทำอนิเมชั่นเด้งเข้า
-MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 12)
-UICorner.Parent = MainFrame
-
--- เล่นอนิเมชั่นเด้งเข้า (Bounce Animation)
-TweenService:Create(MainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.new(0, 500, 0, 380),
-    Position = UDim2.new(0.5, -250, 0.5, -190)
-}):Play()
-
--- ส่วนหัว (Header) พร้อมโลโก้ไก่จ๊อ (G) และชื่อสคริปต์
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 45)
-Header.BackgroundColor3 = Color3.fromRGB(25, 25, 38)
-Header.BorderSizePixel = 0
-Header.Parent = MainFrame
-
-local HeaderCorner = Instance.new("UICorner")
-HeaderCorner.CornerRadius = UDim.new(0, 12)
-HeaderCorner.Parent = Header
-
--- โลโก้ตัว G สไตล์ไก่จ๊อ 🍗
-local LogoG = Instance.new("TextLabel")
-LogoG.Size = UDim2.new(0, 35, 0, 35)
-LogoG.Position = UDim2.new(0, 8, 0, 5)
-LogoG.BackgroundColor3 = Color3.fromRGB(220, 130, 40)
-LogoG.Text = "🍗"
-LogoG.TextSize = 18
-LogoG.Font = Enum.Font.GothamBold
-LogoG.Parent = Header
-Instance.new("UICorner", LogoG).CornerRadius = UDim.new(0, 8)
-
--- ชื่อสคริปต์
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -130, 1, 0)
-TitleLabel.Position = UDim2.new(0, 50, 0, 0)
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "FIFIA&NEWDAM&JAOMONGMONG HUB"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
-TitleLabel.TextSize = 12
-TitleLabel.Font = Enum.Font.GothamBold
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-TitleLabel.Parent = Header
-
--- ปุ่มพับหน้าจอ (Minimize)
-local MinimizeBtn = Instance.new("TextButton")
-MinimizeBtn.Size = UDim2.new(0, 32, 0, 32)
-MinimizeBtn.Position = UDim2.new(1, -74, 0, 6)
-MinimizeBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 65)
-MinimizeBtn.Text = "-"
-MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeBtn.TextSize = 18
-MinimizeBtn.Font = Enum.Font.GothamBold
-MinimizeBtn.Parent = Header
-Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 6)
-
--- ปุ่มปิด UI
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 32, 0, 32)
-CloseBtn.Position = UDim2.new(1, -36, 0, 6)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.TextSize = 13
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.Parent = Header
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-
--- คอนเทนเนอร์เนื้อหาข้างใน
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, 0, 1, -45)
-Container.Position = UDim2.new(0, 0, 0, 45)
-Container.BackgroundTransparency = 1
-Container.Parent = MainFrame
-
--- ระบบพับหน้าจอ
-local isMinimized = false
-MinimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    Container.Visible = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 500, 0, 45) or UDim2.new(0, 500, 0, 380)
-    TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize}):Play()
-    MinimizeBtn.Text = isMinimized and "+" or "-"
-end)
-
-CloseBtn.MouseButton1Click:Connect(function()
-    local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
-    closeTween:Play()
-    closeTween.Completed:Wait()
-    ScreenGui:Destroy()
-end)
-
--- Tab เมนูด้านซ้าย
-local TabFrame = Instance.new("ScrollingFrame")
-TabFrame.Size = UDim2.new(0, 135, 1, -10)
-TabFrame.Position = UDim2.new(0, 10, 0, 5)
-TabFrame.BackgroundTransparency = 1
-TabFrame.ScrollBarThickness = 2
-TabFrame.Parent = Container
-
-local TabList = Instance.new("UIListLayout")
-TabList.SortOrder = Enum.SortOrder.LayoutOrder
-TabList.Padding = UDim.new(0, 6)
-TabList.Parent = TabFrame
-
--- หน้าต่างเนื้อหา (Pages Container)
-local PagesFrame = Instance.new("Frame")
-PagesFrame.Size = UDim2.new(1, -160, 1, -10)
-PagesFrame.Position = UDim2.new(0, 150, 0, 5)
-PagesFrame.BackgroundTransparency = 1
-PagesFrame.Parent = Container
-
-local function createPage()
-    local p = Instance.new("ScrollingFrame")
-    p.Size = UDim2.new(1, 0, 1, 0)
-    p.BackgroundTransparency = 1
-    p.BorderSizePixel = 0
-    p.ScrollBarThickness = 4
-    p.Visible = false
-    p.Parent = PagesFrame
-    local layout = Instance.new("UIListLayout")
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Padding = UDim.new(0, 8)
-    layout.Parent = p
-    return p
-end
-
-local pageNav = createPage()
-local pageShip = createPage()
+print("UI Loaded in PlayerGui Successfully!")
+= createPage()
 local pageVisual = createPage()
 local pageSetting = createPage()
 pageNav.Visible = true
