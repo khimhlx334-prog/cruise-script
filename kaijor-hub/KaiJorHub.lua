@@ -1,15 +1,67 @@
--- KaiJor Hub v0.1.0 | Standalone client UI; no external UI library.
+-- KaiJor Hub v0.2.0 | Standalone client UI and session monitor.
 -- Run as a LocalScript or in a client Lua environment supporting Roblox APIs.
--- This release creates the interface only.
+-- The background monitor reports session state. It is not account ban protection.
 
 local Players = game:GetService("Players")
 local Input = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 assert(player, "KaiJor Hub must run on the client.")
 local playerGui = player:WaitForChild("PlayerGui")
 local previous = playerGui:FindFirstChild("KaiJorHub")
 if previous then previous:Destroy() end
+
+-- Separate lifetime: closing the visible UI does not stop the monitor.
+-- Re-running the hub reuses this controller instead of spawning another loop.
+local monitor = playerGui:FindFirstChild("KaiJorSessionMonitor")
+if not monitor then
+    monitor = Instance.new("ScreenGui")
+    monitor.Name = "KaiJorSessionMonitor"
+    monitor.ResetOnSpawn = false
+    monitor.Enabled = false
+    monitor:SetAttribute("Running", false)
+    monitor:SetAttribute("Seconds", 0)
+    monitor:SetAttribute("Samples", 0)
+    monitor:SetAttribute("PlaceId", game.PlaceId)
+    monitor:SetAttribute("CharacterState", "Waiting")
+    local command = Instance.new("BindableEvent")
+    command.Name = "Command"
+    command.Parent = monitor
+    monitor.Parent = playerGui
+
+    local heartbeat, elapsed, interval = nil, 0, 0
+    local function stop()
+        if heartbeat then heartbeat:Disconnect(); heartbeat = nil end
+        monitor:SetAttribute("Running", false)
+    end
+    local function start()
+        if heartbeat then return end
+        interval = 0
+        monitor:SetAttribute("Running", true)
+        heartbeat = RunService.Heartbeat:Connect(function(dt)
+            elapsed = elapsed + dt
+            interval = interval + dt
+            if interval < 2 then return end
+            interval = interval % 2
+            monitor:SetAttribute("Seconds", math.floor(elapsed))
+            monitor:SetAttribute("CharacterState", player.Character and "Present" or "Respawning")
+            monitor:SetAttribute("Samples", monitor:GetAttribute("Samples") + 1)
+        end)
+    end
+    local commands = command.Event:Connect(function(action)
+        if action == "Start" then start()
+        elseif action == "Stop" then stop() end
+    end)
+    local destroying
+    destroying = monitor.Destroying:Connect(function()
+        stop()
+        commands:Disconnect()
+        destroying:Disconnect()
+    end)
+    start()
+end
+local monitorCommand = monitor:WaitForChild("Command")
 
 local colors = {
     background = Color3.fromRGB(15, 16, 24),
@@ -119,7 +171,7 @@ local pageArea = create("Frame", {
     BackgroundTransparency = 1, Position = UDim2.fromOffset(16, 142),
     Size = UDim2.new(1, -32, 1, -183),
 }, window)
-label(window, "KaiJor Hub  /  v0.1.0", 11,
+label(window, "KaiJor Hub  /  v0.2.0", 11,
     UDim2.new(0, 18, 1, -30), UDim2.new(1, -36, 0, 20), colors.muted)
 local reopen = button(root, "K", UDim2.fromOffset(48, 48), UDim2.fromOffset(16, 16), colors.accent)
 reopen.Name = "Reopen"
@@ -168,7 +220,7 @@ label(hero, "A clean workspace, built around you.", 13, UDim2.fromOffset(16, 79)
 local status = card(home, 78, 2)
 label(status, "INTERFACE STATUS", 10, UDim2.fromOffset(16, 12),
     UDim2.new(1, -32, 0, 16), colors.muted, Enum.Font.GothamBold)
-label(status, "Ready  /  UI preview", 16, UDim2.fromOffset(16, 32),
+local statusText = label(status, "Ready  /  Monitor running", 16, UDim2.fromOffset(16, 32),
     UDim2.new(1, -32, 0, 30), colors.mint, Enum.Font.GothamMedium)
 local hint = card(home, 88, 3)
 label(hint, "Move freely", 15, UDim2.fromOffset(16, 11), UDim2.new(1, -32, 0, 24),
@@ -177,13 +229,36 @@ label(hint, "Drag the header to move. Tap - to minimize and K to reopen.", 12,
     UDim2.fromOffset(16, 37), UDim2.new(1, -32, 0, 40), colors.muted)
 
 local controls = page("Controls")
-local empty = card(controls, 200, 1)
-label(empty, "BUILDING BLOCKS", 10, UDim2.fromOffset(16, 16),
-    UDim2.new(1, -32, 0, 20), colors.accent, Enum.Font.GothamBold)
-label(empty, "Nothing added yet.", 23, UDim2.fromOffset(16, 48),
-    UDim2.new(1, -32, 0, 64), colors.text, Enum.Font.GothamBold)
-label(empty, "Future controls will appear here. This version contains the interface only.", 13,
-    UDim2.fromOffset(16, 116), UDim2.new(1, -32, 0, 66), colors.muted)
+local monitorCard = card(controls, 264, 1)
+label(monitorCard, "BACKGROUND MONITOR", 11, UDim2.fromOffset(16, 14),
+    UDim2.new(1, -32, 0, 22), colors.accent, Enum.Font.GothamBold)
+local monitorText = label(monitorCard, "", 13, UDim2.fromOffset(16, 48),
+    UDim2.new(1, -32, 0, 142), colors.text)
+monitorText.TextYAlignment = Enum.TextYAlignment.Top
+local monitorButton = button(monitorCard, "Stop monitor", UDim2.new(1, -32, 0, 42),
+    UDim2.fromOffset(16, 205))
+local note = card(controls, 128, 2)
+label(note, "Session monitoring only", 15, UDim2.fromOffset(16, 12),
+    UDim2.new(1, -32, 0, 32), colors.text, Enum.Font.GothamMedium)
+label(note, "No account ban protection. Monitoring continues after closing this UI and ends when you leave the game.", 12,
+    UDim2.fromOffset(16, 49), UDim2.new(1, -32, 0, 66), colors.muted)
+local function refreshMonitor()
+    local running = monitor:GetAttribute("Running")
+    local seconds = monitor:GetAttribute("Seconds") or 0
+    statusText.Text = running and "Ready  /  Monitor running" or "Ready  /  Monitor stopped"
+    statusText.TextColor3 = running and colors.mint or colors.muted
+    monitorButton.Text = running and "Stop monitor" or "Start monitor"
+    monitorText.Text = string.format("Status: %s\nActive time: %02d:%02d\nSamples: %d\nPlace ID: %s\nCharacter: %s\nAccount protection: unavailable",
+        running and "Running" or "Stopped", math.floor(seconds / 60), seconds % 60,
+        monitor:GetAttribute("Samples") or 0, tostring(monitor:GetAttribute("PlaceId")),
+        monitor:GetAttribute("CharacterState") or "Waiting")
+end
+connect(monitor:GetAttributeChangedSignal("Samples"), refreshMonitor)
+connect(monitor:GetAttributeChangedSignal("Running"), refreshMonitor)
+connect(monitorButton.Activated, function()
+    monitorCommand:Fire(monitor:GetAttribute("Running") and "Stop" or "Start")
+end)
+refreshMonitor()
 
 local settings = page("Settings")
 local motionCard = card(settings, 114, 1)
